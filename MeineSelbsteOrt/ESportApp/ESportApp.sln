@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37614.0 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ESportApp", "ESportApp.csproj", "{202549D9-12BC-43BA-B5C7-C1A25BFC3CC6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataSerie", "..\DataSerie\DataSerie.csproj", "{0FA51C89-0146-4C5C-AECE-46CB9E8727C8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{202549D9-12BC-43BA-B5C7-C1A25BFC3CC6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{202549D9-12BC-43BA-B5C7-C1A25BFC3CC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{202549D9-12BC-43BA-B5C7-C1A25BFC3CC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{202549D9-12BC-43BA-B5C7-C1A25BFC3CC6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0FA51C89-0146-4C5C-AECE-46CB9E8727C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FA51C89-0146-4C5C-AECE-46CB9E8727C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FA51C89-0146-4C5C-AECE-46CB9E8727C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0FA51C89-0146-4C5C-AECE-46CB9E8727C8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EFED1BFA-FE60-443A-99F1-7EEFDCA2ED6F}
+	EndGlobalSection
+EndGlobal
