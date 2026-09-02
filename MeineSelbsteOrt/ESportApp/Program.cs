@@ -1,47 +1,83 @@
 ﻿
-using DataSerie;
+using DataPoint;
 namespace ESportApp;
 public class Program
 {
+    static ValorantMatch ParseValorant(string[] cols) => new ValorantMatch(
+        cols[1],
+        cols[2],
+        int.Parse(cols[3]),
+        int.Parse(cols[4]),
+        int.Parse(cols[5]),
+        int.Parse(cols[6]),
+        int.Parse(cols[7]),
+        bool.Parse(cols[8])
+    );
+
+    static Cs2Match ParseCs2(string[] cols) => new Cs2Match(
+        cols[1],
+        cols[2],
+        cols[3],
+        int.Parse(cols[4]),
+        int.Parse(cols[5]),
+        int.Parse(cols[6]),
+        int.Parse(cols[7]),
+        bool.Parse(cols[8])
+    );
+
+    static LolMatch ParseLol(string[] cols) => new LolMatch(
+        cols[1],
+        cols[2],
+        int.Parse(cols[4]),
+        int.Parse(cols[5]),
+        int.Parse(cols[6]),
+        int.Parse(cols[7]),
+        int.Parse(cols[8]),
+        bool.Parse(cols[9])
+    );
+
     public static void Main(string[] args)
     {
-        var valorantMatches = new[]
-{
-    new ValorantMatch("Léa", "Jett",  18, 6, 4, 8,  13, true),
-    new ValorantMatch("Léa", "Reyna", 22, 8, 2, 11,  9, false),
-    new ValorantMatch("Léa", "Neon",  20, 7, 5,  9, 13, true),
-};
-        var cs2 = DataSeries<Cs2Match>.From(new[]
-        {
-    new Cs2Match("Raphaël", "Mirage",  "CT", 21, 14, 5, 2, true),
-    new Cs2Match("Kiara",   "Dust2",   "T",  26, 11, 1, 4, true),
-    new Cs2Match("Raphaël", "Inferno", "T",  14, 16, 6, 1, false),
-});
+        var valorant = DataSeries<ValorantMatch>.FromCsv("data/valorant.csv", ParseValorant);
+        var cs2      = DataSeries<Cs2Match>.FromCsv("data/cs2.csv", ParseCs2);
+        var lol      = DataSeries<LolMatch>.FromCsv("data/lol.csv", ParseLol);
 
-        var lol = DataSeries<LolMatch>.From(new[]
-        {
-    new LolMatch("Noé", "Thresh", 2, 4, 18, 42, 71, true),
-    new LolMatch("Noé", "Thresh", 1, 6, 12, 35, 64, false),
-});
+        Console.WriteLine($"Valorant : {valorant.Count} matchs");
+        Console.WriteLine($"CS2      : {cs2.Count} matchs");
+        Console.WriteLine($"LoL      : {lol.Count} matchs");
+        var simpleGenerated = MatchGenerator.GenerateCs2("S1mple", 20);
+        Console.WriteLine(simpleGenerated.Count); // 20
+        var tmasterGenerated = MatchGenerator.GenerateValorant("Trashmaster", 67);
+        Console.WriteLine(tmasterGenerated.Count); // 67
+        var KyellGenerated = MatchGenerator.GenerateLol("Kyell Cornu", 67);
+        Console.WriteLine(KyellGenerated.Count); // 67
 
-        Console.WriteLine($"CS2 : {cs2.Count} matchs, LoL : {lol.Count} matchs"); // 3 et 2
-        var valorant = DataSeries<ValorantMatch>.From(valorantMatches);
-        if (args.Length == 0 || args.Contains("--help"))
-        {
-            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol]");
-            return;
-        }
+        Func<Cs2Match, bool> isValidCs2 = m =>
+            m.Kills + m.Assists <= 50 &&
+            m.Deaths >= 1;
+        var simpleValid = simpleGenerated.Filter(isValidCs2);
+        Console.WriteLine($"Avant : {simpleGenerated.Count}, après : {simpleValid.Count}");
+
+        Func<ValorantMatch, bool> isValidValorant = m =>
+            m.Kills + m.Assists <= 45 &&
+            m.Deaths >= 1 &&
+            m.Headshots <= 100;
+
+        var trashmasterGenerated = MatchGenerator.GenerateValorant("Trashmaster", 50);
+        var trashmasterValid = trashmasterGenerated.Filter(isValidValorant);
+        Console.WriteLine($"Avant : {trashmasterGenerated.Count}, après : {trashmasterValid.Count}");
+
+        Func<LolMatch, bool> isValidLol = m =>
+            m.Kills + m.Assists <= 25 &&
+            m.Deaths >= 1 &&
+            m.Cs <= 200;
+
+        var kyellGenerated = MatchGenerator.GenerateLol("Kyell Cornu", 50);
+        var kyellValid = kyellGenerated.Filter(isValidLol);
+        Console.WriteLine($"Avant : {kyellGenerated.Count}, après : {kyellValid.Count}");
 
         string? game = null;
         if (args.Contains("--game"))
             game = args[Array.IndexOf(args, "--game") + 1];
-
-        // séries construites avec les matchs en dur des étapes 2 et 3
-        if (game == null || game == "valorant")
-            Console.WriteLine($"Valorant : {valorant.Count} matchs");
-        if (game == null || game == "cs2")
-            Console.WriteLine($"CS2      : {cs2.Count} matchs");
-        if (game == null || game == "lol")
-            Console.WriteLine($"LoL      : {lol.Count} matchs");
     }
 }
