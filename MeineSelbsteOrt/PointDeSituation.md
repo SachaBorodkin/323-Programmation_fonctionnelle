@@ -1,0 +1,1 @@
+On a découvert la générecité, partiellement importation depuis un fichier externe et les fonctions d'ordre supérieur, aussi on a commencé l'exercice "ESportApp" oû on a pratiqué les conaissances appries 
