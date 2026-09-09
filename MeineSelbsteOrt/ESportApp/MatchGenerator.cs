@@ -12,7 +12,7 @@ public static class MatchGenerator
         var rng = new Random(seed);
         var maps = new[] { "Dust2", "Mirage", "Inferno", "Nuke", "Ancient" };
         var sides = new[] { "CT", "T" };
-        var start = new DateTime(2023, 9, 1); // début de la pré-saison
+        var start = new DateTime(2023, 9, 1);
 
         return DataSeries<Cs2Match>.From(
             Enumerable.Range(1, count)

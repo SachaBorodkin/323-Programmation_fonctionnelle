@@ -87,7 +87,6 @@ public class Program
             return;
         }
 
-        // Prédicats de validation des matchs générés
         Func<Cs2Match, bool> isValidCs2 = m =>
             m.Kills + m.Assists <= 50 &&
             m.Deaths >= 1;
@@ -99,7 +98,6 @@ public class Program
         Func<LolMatch, bool> isValidLol = m =>
             m.Deaths >= 1;
 
-        // Gestion du flag --generate
         if (args.Contains("--generate"))
         {
             var targetIndex = Array.IndexOf(args, "--generate") + 1;
