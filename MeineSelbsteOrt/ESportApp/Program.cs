@@ -105,11 +105,30 @@ public class Program
         var kyellGenerated = MatchGenerator.GenerateLol("Kyell Cornu", 50);
         var kyellValid = kyellGenerated.Filter(isValidLol);
         Console.WriteLine($"Avant : {kyellGenerated.Count}, après : {kyellValid.Count}");
-
+        if (args.Length == 0 || args.Contains("--help"))
+        {
+            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol]");
+            return;
+        }
         string? game = null;
         if (args.Contains("--game"))
             game = args[Array.IndexOf(args, "--game") + 1];
+        if (args.Contains("--generate"))
+        {
+            var target = args[Array.IndexOf(args, "--generate") + 1];
 
+            var players = target == "all"
+                ? new[] { "Raphaël", "Kiara", "Dylan", "Noé" }
+                : new[] { target };
+
+            foreach (var player in players)
+            {
+                var series = MatchGenerator.GenerateCs2(player, 20);
+                ExportCs2(series/*.Filter(isValid)*/, $"{player.ToLower()}_generated.csv");
+                Console.WriteLine($"{player} : données générées et exportées");
+            }
+            return;
+        }
         Directory.CreateDirectory("data");
         ExportCs2(simpleValid, "data/s1mple_generated_cs2.csv");
         ExportLol(kyellValid, "data/kyell_generated_lol.csv");
