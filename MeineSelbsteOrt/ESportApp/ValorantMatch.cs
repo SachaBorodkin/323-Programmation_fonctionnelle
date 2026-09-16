@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +8,7 @@ namespace ESportApp
 {
     public class ValorantMatch
     {
+        public DateTime Timestamp { get; }
         public string Player { get; }
         public string Agent { get; }
         public int Kills { get; }
@@ -17,9 +18,10 @@ namespace ESportApp
         public int RoundsWon { get; }
         public bool Won { get; }
 
-        public ValorantMatch(string player, string agent, int kills, int deaths,
+        public ValorantMatch(DateTime timestamp, string player, string agent, int kills, int deaths,
                              int assists, int headshots, int roundsWon, bool won)
         {
+            Timestamp = timestamp;
             Player = player;
             Agent = agent;
             Kills = kills;
@@ -29,5 +31,9 @@ namespace ESportApp
             RoundsWon = roundsWon;
             Won = won;
         }
+
+        public ValorantMatch(string player, string agent, int kills, int deaths,
+                             int assists, int headshots, int roundsWon, bool won)
+            : this(default, player, agent, kills, deaths, assists, headshots, roundsWon, won) { }
     }
 }

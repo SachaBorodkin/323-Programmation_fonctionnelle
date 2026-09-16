@@ -7,18 +7,16 @@ namespace DataPoint;
 
 public class DataSeries<T>
 {
-    private readonly IEnumerable<DataPoint<T>> _data;
+    private readonly IEnumerable<T> _data;
 
-    private DataSeries(IEnumerable<DataPoint<T>> data) => _data = data;
+    private DataSeries(IEnumerable<T> data) => _data = data;
 
-    public static DataSeries<T> From(IEnumerable<DataPoint<T>> source)
+    public static DataSeries<T> From(IEnumerable<T> source)
         => new DataSeries<T>(source);
 
     public int Count => _data.Count();
 
-    public IEnumerable<T> Values => _data.Select(dp => dp.Value);
-
-    public IEnumerable<DataPoint<T>> DataPoints => _data;
+    public IEnumerable<T> Values => _data;
 
     public static DataSeries<T> FromCsv(string path, Func<string[], T> parser)
     {
@@ -26,13 +24,10 @@ public class DataSeries<T>
         return new DataSeries<T>(lines.Select(line =>
         {
             var cols = line.Split(',');
-            return new DataPoint<T>(DateTime.Parse(cols[0]), parser(cols));
+            return parser(cols);
         }));
     }
 
     public DataSeries<T> Filter(Func<T, bool> predicate)
-        => new DataSeries<T>(_data.Where(dp => predicate(dp.Value)));
-
-    public DataSeries<T> FilterByDate(Func<DateTime, bool> predicate)
-        => new DataSeries<T>(_data.Where(dp => predicate(dp.Timestamp)));
+        => new DataSeries<T>(_data.Where(predicate));
 }

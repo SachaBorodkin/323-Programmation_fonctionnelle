@@ -12,22 +12,20 @@ public static class MatchGenerator
         var rng = new Random(seed);
         var maps = new[] { "Dust2", "Mirage", "Inferno", "Nuke", "Ancient" };
         var sides = new[] { "CT", "T" };
-        var start = new DateTime(2023, 9, 1);
+        var start = new DateTime(2023, 9, 1); // début de la pré-saison
 
         return DataSeries<Cs2Match>.From(
             Enumerable.Range(1, count)
-                .Select(i => new DataPoint<Cs2Match>(
+                .Select(i => new Cs2Match(
                     start.AddDays(i),
-                    new Cs2Match(
-                        player,
-                        maps[rng.Next(maps.Length)],
-                        sides[rng.Next(2)],
-                        rng.Next(10, 28),   
-                        rng.Next(6, 18),    
-                        rng.Next(0, 8),     
-                        rng.Next(0, 5),     
-                        rng.Next(2) == 0    
-                    )
+                    player,
+                    maps[rng.Next(maps.Length)],
+                    sides[rng.Next(2)],
+                    rng.Next(10, 28),   // kills
+                    rng.Next(6, 18),    // deaths
+                    rng.Next(0, 8),     // assists
+                    rng.Next(0, 5),     // mvps
+                    rng.Next(2) == 0    // won
                 ))
         );
     }
@@ -35,23 +33,21 @@ public static class MatchGenerator
     public static DataSeries<ValorantMatch> GenerateValorant(string player, int count, int seed = 42)
     {
         var rng = new Random(seed);
-        var agents = new[] { "Kirk", "Stein", "Big Yahu", "Diddy", "Zeleboba" };
+        var agents = new[] { "Jett", "Reyna", "Neon", "Omen", "Brimstone", "Astra" };
         var start = new DateTime(2023, 9, 1);
 
         return DataSeries<ValorantMatch>.From(
             Enumerable.Range(1, count)
-                .Select(i => new DataPoint<ValorantMatch>(
+                .Select(i => new ValorantMatch(
                     start.AddDays(i),
-                    new ValorantMatch(
-                        player,
-                        agents[rng.Next(agents.Length)],
-                        rng.Next(10, 30),   
-                        rng.Next(5, 18),    
-                        rng.Next(0, 15),    
-                        rng.Next(0, 15),    
-                        rng.Next(5, 14),   
-                        rng.Next(2) == 0    
-                    )
+                    player,
+                    agents[rng.Next(agents.Length)],
+                    rng.Next(10, 30),   // kills
+                    rng.Next(5, 18),    // deaths
+                    rng.Next(0, 15),    // assists
+                    rng.Next(0, 15),    // headshots
+                    rng.Next(5, 14),    // roundsWon
+                    rng.Next(2) == 0    // won
                 ))
         );
     }
@@ -59,23 +55,21 @@ public static class MatchGenerator
     public static DataSeries<LolMatch> GenerateLol(string player, int count, int seed = 42)
     {
         var rng = new Random(seed);
-        var champions = new[] { "Thresh", "Nautilus", "Lulu", "Sraka", "Leona", "Blitzkrieg" };
+        var champions = new[] { "Thresh", "Nautilus", "Lulu", "Soraka", "Leona", "Blitzcrank" };
         var start = new DateTime(2023, 9, 1);
 
         return DataSeries<LolMatch>.From(
             Enumerable.Range(1, count)
-                .Select(i => new DataPoint<LolMatch>(
+                .Select(i => new LolMatch(
                     start.AddDays(i),
-                    new LolMatch(
-                        player,
-                        champions[rng.Next(champions.Length)],
-                        rng.Next(0, 5),     
-                        rng.Next(1, 10),   
-                        rng.Next(10, 25),   
-                        rng.Next(20, 60),   
-                        rng.Next(40, 80),   
-                        rng.Next(2) == 0   
-                    )
+                    player,
+                    champions[rng.Next(champions.Length)],
+                    rng.Next(0, 5),     // kills
+                    rng.Next(1, 10),    // deaths
+                    rng.Next(10, 25),   // assists
+                    rng.Next(20, 60),   // cs
+                    rng.Next(40, 80),   // visionScore
+                    rng.Next(2) == 0    // won
                 ))
         );
     }

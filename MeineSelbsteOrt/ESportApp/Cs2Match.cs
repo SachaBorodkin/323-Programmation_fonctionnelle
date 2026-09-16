@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,8 +8,9 @@ namespace ESportApp
 {
     public class Cs2Match
     {
-        public Cs2Match(string player, string map, string startSide, int kills, int deaths, int assists, int mvps, bool won)
+        public Cs2Match(DateTime timestamp, string player, string map, string startSide, int kills, int deaths, int assists, int mvps, bool won)
         {
+            Timestamp = timestamp;
             Player = player;
             Map = map;
             StartSide = startSide;
@@ -20,6 +21,10 @@ namespace ESportApp
             Won = won;
         }
 
+        public Cs2Match(string player, string map, string startSide, int kills, int deaths, int assists, int mvps, bool won)
+            : this(default, player, map, startSide, kills, deaths, assists, mvps, won) { }
+
+        public DateTime Timestamp { get; }
         public string Player { get; }
         public string Map { get; }
         public string StartSide { get; }
