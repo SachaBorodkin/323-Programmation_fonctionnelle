@@ -170,7 +170,7 @@ public class Program
 
         if (args.Length == 0 || args.Contains("--help"))
         {
-            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers] [--sanitize]");
+            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers] [--sanitize] [--error strict|soft|hard] [--player <nom>] [--filter wins|losses|all|close]");
             return;
         }
 
@@ -181,7 +181,20 @@ public class Program
         var valorant = File.Exists(valorantPath) ? DataSeries<ValorantMatch>.FromCsv(valorantPath, ParseValorant) : null;
         var cs2      = File.Exists(cs2Path) ? DataSeries<Cs2Match>.FromCsv(cs2Path, ParseCs2) : null;
         var lol      = File.Exists(lolPath) ? DataSeries<LolMatch>.FromCsv(lolPath, ParseLol) : null;
+        Func<ValorantMatch, bool> isOutlierValorant = m =>
+            m.Kills   < 0 || m.Kills > 50 ||
+            m.Deaths  < 0 || m.Deaths > 30 ||
+            m.Assists < 0;
 
+        Func<Cs2Match, bool> isOutlierCs2 = m =>
+            m.Kills + m.Assists > 50 ||
+            m.Deaths < 0;
+
+        Func<LolMatch, bool> isOutlierLol = m =>
+            m.Kills   > 10 ||
+            m.Deaths  < 1  ||
+            m.Assists < 0  ||
+            m.Cs      < 0;
   
         if (args.Contains("--outliers"))
         {
@@ -194,42 +207,144 @@ public class Program
             return;
         }
 
-        // 3.2 — Supprimer les erreurs avec Sanitize
         if (args.Contains("--sanitize"))
         {
             if (valorant != null)
             {
-                var cleanValorant = valorant.Sanitize(m =>
-                    m.Kills   < 0 || m.Kills > 50 ||
-                    m.Deaths  < 0 || m.Deaths > 30 ||
-                    m.Assists < 0
-                );
+                var cleanValorant = valorant.Sanitize(isOutlierValorant);
                 Console.WriteLine($"Valorant avant sanitize : {valorant.Count}, après : {cleanValorant.Count}");
             }
 
             if (cs2 != null)
             {
-                var cleanCs2 = cs2.Sanitize(m =>
-                    m.Kills + m.Assists > 50 ||
-                    m.Deaths < 0
-                );
+                var cleanCs2 = cs2.Sanitize(isOutlierCs2);
                 Console.WriteLine($"CS2 avant sanitize      : {cs2.Count}, après : {cleanCs2.Count}");
             }
 
             if (lol != null)
             {
-                var cleanLol = lol.Sanitize(m =>
-                    m.Kills   > 10 ||
-                    m.Deaths  < 1  ||
-                    m.Assists < 0  ||
-                    m.Cs      < 0
-                );
+                var cleanLol = lol.Sanitize(isOutlierLol);
                 Console.WriteLine($"LoL avant sanitize      : {lol.Count}, après : {cleanLol.Count}");
             }
             return;
         }
 
-        // Gestion du flag --game
+        if (args.Contains("--error"))
+        {
+            var errorIndex = Array.IndexOf(args, "--error") + 1;
+            var errorMode = (errorIndex < args.Length ? args[errorIndex] : "soft").ToLower();
+
+            if (errorMode == "strict")
+            {
+                var vOutliers = valorant?.Outliers(isOutlierValorant);
+                var cOutliers = cs2?.Outliers(isOutlierCs2);
+                var lOutliers = lol?.Outliers(isOutlierLol);
+
+                int totalOutliers = (vOutliers?.Count ?? 0) + (cOutliers?.Count ?? 0) + (lOutliers?.Count ?? 0);
+                if (totalOutliers > 0)
+                {
+                    Console.WriteLine($"[STRICT] {totalOutliers} erreur(s) détectée(s) :");
+                    if (vOutliers != null && vOutliers.Count > 0)
+                        Console.WriteLine($"  - Valorant : {vOutliers.Count} outlier(s)");
+                    if (cOutliers != null && cOutliers.Count > 0)
+                        Console.WriteLine($"  - CS2 : {cOutliers.Count} outlier(s)");
+                    if (lOutliers != null && lOutliers.Count > 0)
+                        Console.WriteLine($"  - LoL : {lOutliers.Count} outlier(s)");
+                    Console.WriteLine("Arrêt immédiat de l'application (mode strict).");
+                    return;
+                }
+                Console.WriteLine("[STRICT] Aucune erreur détectée.");
+            }
+            else if (errorMode == "soft")
+            {
+                if (valorant != null) valorant = valorant.Sanitize(isOutlierValorant);
+                if (cs2 != null) cs2 = cs2.Sanitize(isOutlierCs2);
+                if (lol != null) lol = lol.Sanitize(isOutlierLol);
+                Console.WriteLine("[SOFT] Données nettoyées en mémoire.");
+            }
+            else if (errorMode == "hard")
+            {
+                if (valorant != null)
+                {
+                    valorant = valorant.Sanitize(isOutlierValorant);
+                    ExportValorant(valorant, valorantPath);
+                }
+                if (cs2 != null)
+                {
+                    cs2 = cs2.Sanitize(isOutlierCs2);
+                    ExportCs2(cs2, cs2Path);
+                }
+                if (lol != null)
+                {
+                    lol = lol.Sanitize(isOutlierLol);
+                    ExportLol(lol, lolPath);
+                }
+                Console.WriteLine("[HARD] Données nettoyées et sauvegardées dans les fichiers CSV.");
+            }
+            else
+            {
+                Console.WriteLine($"Mode d'erreur inconnu : '{errorMode}' (modes attendus : strict, soft, hard)");
+                return;
+            }
+        }
+
+    
+        string? player = null;
+        if (args.Contains("--player"))
+        {
+            var playerIndex = Array.IndexOf(args, "--player") + 1;
+            if (playerIndex < args.Length)
+                player = args[playerIndex];
+        }
+
+        if (!string.IsNullOrEmpty(player))
+        {
+            if (valorant != null) valorant = valorant.Filter(m => m.Player.Equals(player, StringComparison.OrdinalIgnoreCase));
+            if (cs2 != null) cs2 = cs2.Filter(m => m.Player.Equals(player, StringComparison.OrdinalIgnoreCase));
+            if (lol != null) lol = lol.Filter(m => m.Player.Equals(player, StringComparison.OrdinalIgnoreCase));
+        }
+
+        string filterMode = "all";
+        if (args.Contains("--filter"))
+        {
+            var filterIndex = Array.IndexOf(args, "--filter") + 1;
+            if (filterIndex < args.Length)
+                filterMode = args[filterIndex].ToLower();
+        }
+
+        var valorantFilters = new Dictionary<string, Func<ValorantMatch, bool>>
+        {
+            ["wins"]   = m => m.Won,
+            ["losses"] = m => !m.Won,
+            ["all"]    = m => true,
+            ["close"]  = m => Math.Abs(m.RoundsWon - 13) <= 2,
+        };
+
+        var cs2Filters = new Dictionary<string, Func<Cs2Match, bool>>
+        {
+            ["wins"]   = m => m.Won,
+            ["losses"] = m => !m.Won,
+            ["all"]    = m => true,
+            ["close"]  = m => m.Kills + m.Deaths >= 25,
+        };
+
+        var lolFilters = new Dictionary<string, Func<LolMatch, bool>>
+        {
+            ["wins"]   = m => m.Won,
+            ["losses"] = m => !m.Won,
+            ["all"]    = m => true,
+            ["close"]  = m => m.Kills + m.Assists >= 18,
+        };
+
+        if (!valorantFilters.ContainsKey(filterMode))
+        {
+            Console.WriteLine($"Filtre inconnu : '{filterMode}' (modes attendus : wins, losses, all, close)");
+            return;
+        }
+
+        if (valorant != null) valorant = valorant.Filter(valorantFilters[filterMode]);
+        if (cs2 != null) cs2 = cs2.Filter(cs2Filters[filterMode]);
+        if (lol != null) lol = lol.Filter(lolFilters[filterMode]);
         string? game = null;
         if (args.Contains("--game"))
         {
@@ -238,11 +353,14 @@ public class Program
                 game = args[gameIndex].ToLower();
         }
 
+        var playerInfo = player != null ? $" pour '{player}'" : "";
+        var filterInfo = filterMode != "all" ? $" (filtre: {filterMode})" : "";
+
         if (game == null || game == "all" || game == "valorant")
-            Console.WriteLine($"Valorant : {(valorant != null ? valorant.Count : 0)} matchs");
+            Console.WriteLine($"Valorant{playerInfo}{filterInfo} : {(valorant != null ? valorant.Count : 0)} matchs");
         if (game == null || game == "all" || game == "cs2")
-            Console.WriteLine($"CS2      : {(cs2 != null ? cs2.Count : 0)} matchs");
+            Console.WriteLine($"CS2{playerInfo}{filterInfo}      : {(cs2 != null ? cs2.Count : 0)} matchs");
         if (game == null || game == "all" || game == "lol")
-            Console.WriteLine($"LoL      : {(lol != null ? lol.Count : 0)} matchs");
+            Console.WriteLine($"LoL{playerInfo}{filterInfo}      : {(lol != null ? lol.Count : 0)} matchs");
     }
 }
