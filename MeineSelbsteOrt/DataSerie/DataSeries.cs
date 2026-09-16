@@ -33,4 +33,7 @@ public class DataSeries<T>
 
     public DataSeries<T> Outliers(Func<T, bool> predicate)
         => DataSeries<T>.From(_data.Where(predicate));
+
+    public DataSeries<T> Sanitize(Func<T, bool> isOutlier)
+        => DataSeries<T>.From(_data.Where(item => !isOutlier(item)));
 }

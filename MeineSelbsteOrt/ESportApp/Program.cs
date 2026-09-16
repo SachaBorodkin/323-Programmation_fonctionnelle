@@ -170,7 +170,7 @@ public class Program
 
         if (args.Length == 0 || args.Contains("--help"))
         {
-            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers]");
+            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers] [--sanitize]");
             return;
         }
 
@@ -190,6 +190,41 @@ public class Program
                 var baaad = valorant.Outliers(m => m.Kills < 0);
                 Console.WriteLine($"Valorant total : {valorant.Count} (inchangé)");
                 Console.WriteLine($"Outliers détectés (Kills < 0) : {baaad.Count}");
+            }
+            return;
+        }
+
+        // 3.2 — Supprimer les erreurs avec Sanitize
+        if (args.Contains("--sanitize"))
+        {
+            if (valorant != null)
+            {
+                var cleanValorant = valorant.Sanitize(m =>
+                    m.Kills   < 0 || m.Kills > 50 ||
+                    m.Deaths  < 0 || m.Deaths > 30 ||
+                    m.Assists < 0
+                );
+                Console.WriteLine($"Valorant avant sanitize : {valorant.Count}, après : {cleanValorant.Count}");
+            }
+
+            if (cs2 != null)
+            {
+                var cleanCs2 = cs2.Sanitize(m =>
+                    m.Kills + m.Assists > 50 ||
+                    m.Deaths < 0
+                );
+                Console.WriteLine($"CS2 avant sanitize      : {cs2.Count}, après : {cleanCs2.Count}");
+            }
+
+            if (lol != null)
+            {
+                var cleanLol = lol.Sanitize(m =>
+                    m.Kills   > 10 ||
+                    m.Deaths  < 1  ||
+                    m.Assists < 0  ||
+                    m.Cs      < 0
+                );
+                Console.WriteLine($"LoL avant sanitize      : {lol.Count}, après : {cleanLol.Count}");
             }
             return;
         }
