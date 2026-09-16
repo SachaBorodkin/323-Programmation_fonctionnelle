@@ -345,6 +345,13 @@ public class Program
         if (valorant != null) valorant = valorant.Filter(valorantFilters[filterMode]);
         if (cs2 != null) cs2 = cs2.Filter(cs2Filters[filterMode]);
         if (lol != null) lol = lol.Filter(lolFilters[filterMode]);
+
+        // Mappers KDA (4.1)
+        Func<ValorantMatch, double> kdaValorant = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths);
+        Func<Cs2Match, double> kdaCs2 = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths);
+        Func<LolMatch, double> kdaLol = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths);
+
+        // Gestion du flag --game
         string? game = null;
         if (args.Contains("--game"))
         {
@@ -355,6 +362,74 @@ public class Program
 
         var playerInfo = player != null ? $" pour '{player}'" : "";
         var filterInfo = filterMode != "all" ? $" (filtre: {filterMode})" : "";
+
+        // 4.1 — Calcul des KDA via Transform(mapper)
+        if (args.Contains("--kda"))
+        {
+            if (player == null && filterMode == "all")
+            {
+                if (valorant != null)
+                {
+                    var kdaAll = valorant.Transform(kdaValorant);
+                    var kdaLea = valorant.Filter(m => m.Player == "Léa").Transform(kdaValorant);
+                    var kdaWins = valorant.Filter(m => m.Won).Transform(kdaValorant);
+                    var kdaLeaWins = valorant.Filter(m => m.Player == "Léa" && m.Won).Transform(kdaValorant);
+
+                    Console.WriteLine("=== KDA Valorant (Transform) ===");
+                    Console.WriteLine($"Tous les matchs ({kdaAll.Count}) : moyenne = {kdaAll.Values.Average():F2}");
+                    Console.WriteLine($"Matchs de Léa ({kdaLea.Count})   : moyenne = {kdaLea.Values.Average():F2}");
+                    Console.WriteLine($"Matchs gagnés ({kdaWins.Count})  : moyenne = {kdaWins.Values.Average():F2}");
+                    Console.WriteLine($"Victoires de Léa ({kdaLeaWins.Count}) : moyenne = {kdaLeaWins.Values.Average():F2} -> [{string.Join(", ", kdaLeaWins.Values.Select(k => k.ToString("F2")))}]");
+                }
+
+                if (cs2 != null)
+                {
+                    var kdaRaphael = cs2.Filter(m => m.Player == "Raphaël").Transform(kdaCs2);
+                    var kdaKiara = cs2.Filter(m => m.Player == "Kiara").Transform(kdaCs2);
+
+                    Console.WriteLine("\n=== KDA CS2 (Transform) ===");
+                    Console.WriteLine($"Raphaël ({kdaRaphael.Count} matchs) : moyenne = {kdaRaphael.Values.Average():F2} -> [{string.Join(", ", kdaRaphael.Values.Select(k => k.ToString("F2")))}]");
+                    Console.WriteLine($"Kiara ({kdaKiara.Count} matchs)   : moyenne = {kdaKiara.Values.Average():F2} -> [{string.Join(", ", kdaKiara.Values.Select(k => k.ToString("F2")))}]");
+                }
+
+                if (lol != null)
+                {
+                    var kdaNoe = lol.Filter(m => m.Player == "Noé").Transform(kdaLol);
+                    var kdaNoeWins = lol.Filter(m => m.Player == "Noé" && m.Won).Transform(kdaLol);
+
+                    Console.WriteLine("\n=== KDA LoL (Transform) ===");
+                    Console.WriteLine($"Noé ({kdaNoe.Count} matchs)       : moyenne = {kdaNoe.Values.Average():F2} -> [{string.Join(", ", kdaNoe.Values.Select(k => k.ToString("F2")))}]");
+                    Console.WriteLine($"Noé victoires ({kdaNoeWins.Count} matchs) : moyenne = {kdaNoeWins.Values.Average():F2} -> [{string.Join(", ", kdaNoeWins.Values.Select(k => k.ToString("F2")))}]");
+                }
+                return;
+            }
+
+            if (game == null || game == "all" || game == "valorant")
+            {
+                if (valorant != null && valorant.Count > 0)
+                {
+                    var kdaSeries = valorant.Transform(kdaValorant);
+                    Console.WriteLine($"Valorant{playerInfo}{filterInfo} KDA ({kdaSeries.Count} matchs) : moyenne = {kdaSeries.Values.Average():F2} -> [{string.Join(", ", kdaSeries.Values.Select(k => k.ToString("F2")))}]");
+                }
+            }
+            if (game == null || game == "all" || game == "cs2")
+            {
+                if (cs2 != null && cs2.Count > 0)
+                {
+                    var kdaSeries = cs2.Transform(kdaCs2);
+                    Console.WriteLine($"CS2{playerInfo}{filterInfo} KDA ({kdaSeries.Count} matchs) : moyenne = {kdaSeries.Values.Average():F2} -> [{string.Join(", ", kdaSeries.Values.Select(k => k.ToString("F2")))}]");
+                }
+            }
+            if (game == null || game == "all" || game == "lol")
+            {
+                if (lol != null && lol.Count > 0)
+                {
+                    var kdaSeries = lol.Transform(kdaLol);
+                    Console.WriteLine($"LoL{playerInfo}{filterInfo} KDA ({kdaSeries.Count} matchs) : moyenne = {kdaSeries.Values.Average():F2} -> [{string.Join(", ", kdaSeries.Values.Select(k => k.ToString("F2")))}]");
+                }
+            }
+            return;
+        }
 
         if (game == null || game == "all" || game == "valorant")
             Console.WriteLine($"Valorant{playerInfo}{filterInfo} : {(valorant != null ? valorant.Count : 0)} matchs");

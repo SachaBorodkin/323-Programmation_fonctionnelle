@@ -36,4 +36,7 @@ public class DataSeries<T>
 
     public DataSeries<T> Sanitize(Func<T, bool> isOutlier)
         => DataSeries<T>.From(_data.Where(item => !isOutlier(item)));
+
+    public DataSeries<TResult> Transform<TResult>(Func<T, TResult> mapper)
+        => DataSeries<TResult>.From(_data.Select(mapper));
 }
