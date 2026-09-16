@@ -73,23 +73,10 @@ public class Program
         File.WriteAllLines(path, lines.Prepend(header));
     }
 
-    private static string ResolveDataPath(string fileName)
-    {
-        var direct = Path.Combine("data", fileName);
-        if (File.Exists(direct)) return direct;
-        var inBase = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", fileName);
-        if (File.Exists(inBase)) return inBase;
-        return direct;
-    }
+    /// <summary>
 
-    public static void Main(string[] args)
+    public static void GenerateMatches(string target)
     {
-        if (args.Length == 0 || args.Contains("--help"))
-        {
-            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>]");
-            return;
-        }
-
         // Prédicats de validation des matchs générés
         Func<Cs2Match, bool> isValidCs2 = m =>
             m.Kills + m.Assists <= 50 &&
@@ -102,59 +89,90 @@ public class Program
         Func<LolMatch, bool> isValidLol = m =>
             m.Deaths >= 1;
 
-        // Gestion du flag --generate
+        var players = target.Equals("all", StringComparison.OrdinalIgnoreCase)
+            ? new[] { "Raphaël", "Kiara", "Dylan", "Noé" }
+            : new[] { target };
+
+        foreach (var player in players)
+        {
+            if (player.Equals("Raphaël", StringComparison.OrdinalIgnoreCase) || player.Equals("Raphael", StringComparison.OrdinalIgnoreCase))
+            {
+                var series = MatchGenerator.GenerateCs2("Raphaël", 20, seed: 42);
+                var valid = series.Filter(isValidCs2);
+                ExportCs2(valid, "raphaël_generated.csv");
+                Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
+            }
+            else if (player.Equals("Kiara", StringComparison.OrdinalIgnoreCase))
+            {
+                var series = MatchGenerator.GenerateCs2("Kiara", 20, seed: 7);
+                var valid = series.Filter(isValidCs2);
+                ExportCs2(valid, "kiara_generated.csv");
+                Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
+            }
+            else if (player.Equals("Dylan", StringComparison.OrdinalIgnoreCase))
+            {
+                var series = MatchGenerator.GenerateValorant("Dylan", 20, seed: 42);
+                var valid = series.Filter(isValidValorant);
+                ExportValorant(valid, "dylan_generated.csv");
+                Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
+            }
+            else if (player.Equals("Noé", StringComparison.OrdinalIgnoreCase) || player.Equals("Noe", StringComparison.OrdinalIgnoreCase))
+            {
+                var series = MatchGenerator.GenerateLol("Noé", 20, seed: 42);
+                var valid = series.Filter(isValidLol);
+                ExportLol(valid, "noé_generated.csv");
+                Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
+            }
+            else
+            {
+                var series = MatchGenerator.GenerateCs2(player, 20);
+                var valid = series.Filter(isValidCs2);
+                ExportCs2(valid, $"{player.ToLower()}_generated.csv");
+                Console.WriteLine($"{player} : données générées et exportées");
+            }
+        }
+    }
+
+ 
+    public static void AskForGeneration()
+    {
+        Console.WriteLine("\n--- Génération de données (recrues) ---");
+        Console.WriteLine("Joueurs disponibles : Raphaël (CS2), Kiara (CS2), Dylan (Valorant), Noé (LoL) ou 'all'");
+        Console.Write("Entrez le nom du joueur à générer (défaut: all) : ");
+        var input = Console.ReadLine()?.Trim();
+        var target = string.IsNullOrWhiteSpace(input) ? "all" : input;
+        GenerateMatches(target);
+    }
+
+    private static string ResolveDataPath(string fileName)
+    {
+        var direct = Path.Combine("data", fileName);
+        if (File.Exists(direct)) return direct;
+        var inBase = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", fileName);
+        if (File.Exists(inBase)) return inBase;
+        return direct;
+    }
+
+    public static void Main(string[] args)
+    {
+      
         if (args.Contains("--generate"))
         {
             var targetIndex = Array.IndexOf(args, "--generate") + 1;
-            if (targetIndex >= args.Length)
+            if (targetIndex < args.Length && !args[targetIndex].StartsWith("--"))
             {
-                Console.WriteLine("Erreur : paramètre manquant pour --generate");
-                return;
+                GenerateMatches(args[targetIndex]);
             }
-
-            var target = args[targetIndex];
-            var players = target.Equals("all", StringComparison.OrdinalIgnoreCase)
-                ? new[] { "Raphaël", "Kiara", "Dylan", "Noé" }
-                : new[] { target };
-
-            foreach (var player in players)
+            else
             {
-                if (player.Equals("Raphaël", StringComparison.OrdinalIgnoreCase) || player.Equals("Raphael", StringComparison.OrdinalIgnoreCase))
-                {
-                    var series = MatchGenerator.GenerateCs2("Raphaël", 20, seed: 42);
-                    var valid = series.Filter(isValidCs2);
-                    ExportCs2(valid, "raphaël_generated.csv");
-                    Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
-                }
-                else if (player.Equals("Kiara", StringComparison.OrdinalIgnoreCase))
-                {
-                    var series = MatchGenerator.GenerateCs2("Kiara", 20, seed: 7);
-                    var valid = series.Filter(isValidCs2);
-                    ExportCs2(valid, "kiara_generated.csv");
-                    Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
-                }
-                else if (player.Equals("Dylan", StringComparison.OrdinalIgnoreCase))
-                {
-                    var series = MatchGenerator.GenerateValorant("Dylan", 20, seed: 42);
-                    var valid = series.Filter(isValidValorant);
-                    ExportValorant(valid, "dylan_generated.csv");
-                    Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
-                }
-                else if (player.Equals("Noé", StringComparison.OrdinalIgnoreCase) || player.Equals("Noe", StringComparison.OrdinalIgnoreCase))
-                {
-                    var series = MatchGenerator.GenerateLol("Noé", 20, seed: 42);
-                    var valid = series.Filter(isValidLol);
-                    ExportLol(valid, "noé_generated.csv");
-                    Console.WriteLine($"{player} : données générées et exportées ({valid.Count}/{series.Count} valides)");
-                }
-                else
-                {
-                    var series = MatchGenerator.GenerateCs2(player, 20);
-                    var valid = series.Filter(isValidCs2);
-                    ExportCs2(valid, $"{player.ToLower()}_generated.csv");
-                    Console.WriteLine($"{player} : données générées et exportées");
-                }
+                AskForGeneration();
             }
+            return;
+        }
+
+        if (args.Length == 0 || args.Contains("--help"))
+        {
+            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>]");
             return;
         }
 
