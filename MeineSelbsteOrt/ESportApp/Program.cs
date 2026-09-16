@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using DataPoint;
@@ -72,8 +72,6 @@ public class Program
         );
         File.WriteAllLines(path, lines.Prepend(header));
     }
-
-    /// <summary>
 
     public static void GenerateMatches(string target)
     {
@@ -172,7 +170,27 @@ public class Program
 
         if (args.Length == 0 || args.Contains("--help"))
         {
-            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>]");
+            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers]");
+            return;
+        }
+
+        var valorantPath = ResolveDataPath("valorant.csv");
+        var cs2Path = ResolveDataPath("cs2.csv");
+        var lolPath = ResolveDataPath("lol.csv");
+
+        var valorant = File.Exists(valorantPath) ? DataSeries<ValorantMatch>.FromCsv(valorantPath, ParseValorant) : null;
+        var cs2      = File.Exists(cs2Path) ? DataSeries<Cs2Match>.FromCsv(cs2Path, ParseCs2) : null;
+        var lol      = File.Exists(lolPath) ? DataSeries<LolMatch>.FromCsv(lolPath, ParseLol) : null;
+
+  
+        if (args.Contains("--outliers"))
+        {
+            if (valorant != null)
+            {
+                var baaad = valorant.Outliers(m => m.Kills < 0);
+                Console.WriteLine($"Valorant total : {valorant.Count} (inchangé)");
+                Console.WriteLine($"Outliers détectés (Kills < 0) : {baaad.Count}");
+            }
             return;
         }
 
@@ -184,14 +202,6 @@ public class Program
             if (gameIndex < args.Length)
                 game = args[gameIndex].ToLower();
         }
-
-        var valorantPath = ResolveDataPath("valorant.csv");
-        var cs2Path = ResolveDataPath("cs2.csv");
-        var lolPath = ResolveDataPath("lol.csv");
-
-        var valorant = File.Exists(valorantPath) ? DataSeries<ValorantMatch>.FromCsv(valorantPath, ParseValorant) : null;
-        var cs2      = File.Exists(cs2Path) ? DataSeries<Cs2Match>.FromCsv(cs2Path, ParseCs2) : null;
-        var lol      = File.Exists(lolPath) ? DataSeries<LolMatch>.FromCsv(lolPath, ParseLol) : null;
 
         if (game == null || game == "all" || game == "valorant")
             Console.WriteLine($"Valorant : {(valorant != null ? valorant.Count : 0)} matchs");

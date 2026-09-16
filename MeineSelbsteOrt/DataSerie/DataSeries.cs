@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,4 +30,7 @@ public class DataSeries<T>
 
     public DataSeries<T> Filter(Func<T, bool> predicate)
         => new DataSeries<T>(_data.Where(predicate));
+
+    public DataSeries<T> Outliers(Func<T, bool> predicate)
+        => DataSeries<T>.From(_data.Where(predicate));
 }
