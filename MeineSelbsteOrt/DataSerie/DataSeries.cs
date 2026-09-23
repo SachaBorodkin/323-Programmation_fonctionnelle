@@ -40,10 +40,6 @@ public class DataSeries<T>
     public DataSeries<TResult> Transform<TResult>(Func<T, TResult> mapper)
         => DataSeries<TResult>.From(_data.Select(mapper));
 
-    /// <summary>
-    /// 4.2 Évalue chaque objet de la série avec l'outil (fonction) d'évaluation fourni,
-    /// et retourne une nouvelle série de valeurs normalisées dans [0, 1].
-    /// </summary>
     public DataSeries<double> Normalize(Func<T, double> evaluator)
     {
         var values = _data.Select(evaluator).ToList();
@@ -58,4 +54,24 @@ public class DataSeries<T>
 
         return DataSeries<double>.From(values.Select(v => (v - min) / (max - min)));
     }
+    public DataSeries<double> Smooth(Func<T, double> evaluator, int windowSize)
+    {
+        if (windowSize <= 0)
+            return DataSeries<double>.From(Enumerable.Empty<double>());
+
+        var valeurs = _data.Select(evaluator).ToList();
+        int combien = Math.Max(0, valeurs.Count - windowSize + 1);
+
+        return DataSeries<double>.From(
+            Enumerable.Range(0, combien)
+                .Select(debut => valeurs.Skip(debut).Take(windowSize).Average())
+                .ToList()
+        );
+    }
+}
+
+public static class DataSeriesExtensions
+{
+    public static DataSeries<double> Smooth(this DataSeries<double> series, int windowSize)
+        => series.Smooth(v => v, windowSize);
 }

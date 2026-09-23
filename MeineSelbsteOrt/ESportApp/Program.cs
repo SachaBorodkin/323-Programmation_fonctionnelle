@@ -169,7 +169,7 @@ public class Program
 
         if (args.Length == 0 || args.Contains("--help"))
         {
-            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers] [--sanitize] [--error strict|soft|hard] [--player <nom>] [--filter wins|losses|all|close] [--kda] [--stat kda|kills|assists] [--normalize]");
+            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers] [--sanitize] [--error strict|soft|hard] [--player <nom>] [--filter wins|losses|all|close] [--kda] [--stat kda|kills|assists] [--normalize] [--smooth <n>]");
             return;
         }
 
@@ -345,7 +345,7 @@ public class Program
         if (cs2 != null) cs2 = cs2.Filter(cs2Filters[filterMode]);
         if (lol != null) lol = lol.Filter(lolFilters[filterMode]);
 
-        // 4.1 & 4.2 — Sélecteurs de statistiques / mappers
+     
         var valorantSelectors = new Dictionary<string, Func<ValorantMatch, double>>
         {
             ["kda"]     = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths),
@@ -371,7 +371,7 @@ public class Program
             ["cs"]      = m => m.Cs,
         };
 
-        // Gestion du flag --game
+   
         string? game = null;
         if (args.Contains("--game"))
         {
@@ -383,7 +383,7 @@ public class Program
         var playerInfo = player != null ? $" pour '{player}'" : "";
         var filterInfo = filterMode != "all" ? $" (filtre: {filterMode})" : "";
 
-        // Flags 4.1 et 4.2 : --kda, --stat, --normalize
+  
         bool normalize = args.Contains("--normalize");
         bool hasStat = args.Contains("--stat");
         bool hasKda = args.Contains("--kda");
@@ -402,8 +402,32 @@ public class Program
             return;
         }
 
-        // 4.2 — Comparaison directe des KDA normalisés si --normalize sans filtre ni stat spécifique
-        if (normalize && !hasStat && !hasKda && player == null && filterMode == "all" && game == null)
+        int smoothWindow = 0;
+        if (args.Contains("--smooth"))
+        {
+            var smoothIndex = Array.IndexOf(args, "--smooth") + 1;
+            if (smoothIndex >= args.Length || args[smoothIndex].StartsWith("--") || !int.TryParse(args[smoothIndex], out smoothWindow))
+            {
+                smoothWindow = -1; // valeur non numérique → message d'erreur, pas d'exception
+            }
+        }
+
+        if (smoothWindow < 0)
+        {
+            var smoothIndex = Array.IndexOf(args, "--smooth") + 1;
+            var raw = smoothIndex < args.Length ? args[smoothIndex] : "";
+            Console.WriteLine($"Fenêtre de lissage invalide : '{raw}' (attendu : un entier >= 1)");
+            return;
+        }
+
+        if (args.Contains("--smooth") && smoothWindow < 1)
+        {
+            Console.WriteLine("Fenêtre de lissage invalide : la taille minimale est 1.");
+            return;
+        }
+
+        
+        if (normalize && !hasStat && !hasKda && !args.Contains("--smooth") && player == null && filterMode == "all" && game == null)
         {
             var kdaLea     = valorant?.Filter(m => m.Player == "Léa");
             var kdaRaphael = cs2?.Filter(m => m.Player == "Raphaël");
@@ -423,10 +447,10 @@ public class Program
             return;
         }
 
-        // 4.1 & 4.2 — Calcul et affichage de stats / normalisation
-        if (hasKda || hasStat || normalize)
+        // 4.1, 4.2 & 4.3 — Calcul et affichage de stats / normalisation / lissage
+        if (hasKda || hasStat || normalize || args.Contains("--smooth"))
         {
-            if (hasKda && !normalize && !hasStat && player == null && filterMode == "all" && game == null)
+            if (hasKda && !normalize && !hasStat && !args.Contains("--smooth") && player == null && filterMode == "all" && game == null)
             {
                 if (valorant != null)
                 {
@@ -464,46 +488,54 @@ public class Program
                 return;
             }
 
-            var normLabel = normalize ? " (normalisé [0, 1])" : "";
+            void AfficherRapport<TMatch>(string label, DataSeries<TMatch>? serie, Dictionary<string, Func<TMatch, double>> selectors, Func<TMatch, DateTime> getDate, Func<TMatch, string> getPlayer)
+            {
+                if (serie == null || serie.Count == 0 || !selectors.TryGetValue(stat, out var selecteur))
+                    return;
+
+                var retenus = serie;
+                DataSeries<double> valeurs = normalize
+                    ? retenus.Normalize(selecteur)
+                    : retenus.Transform(selecteur);
+
+                if (smoothWindow > 0)
+                    valeurs = valeurs.Smooth(v => v, smoothWindow);
+
+                if (smoothWindow > retenus.Count)
+                {
+                    Console.WriteLine($"{label} : {retenus.Count} matchs, {retenus.Count} retenu(s)");
+                    Console.WriteLine($"  fenêtre de lissage ({smoothWindow}) plus large que la série ({retenus.Count}) — rien à afficher\n");
+                    return;
+                }
+
+                int decalage = smoothWindow > 0 ? smoothWindow - 1 : 0;
+                string etiquette = stat.ToLower()
+                                 + (normalize ? " normalisé" : "")
+                                 + (smoothWindow > 0 ? $" lissé({smoothWindow})" : "");
+
+                if (player != null || args.Contains("--smooth"))
+                {
+                    Console.WriteLine($"{label}{playerInfo}{filterInfo} : {retenus.Count} match(s) retenu(s)");
+                    foreach (var (match, val) in retenus.Values.Skip(decalage).Zip(valeurs.Values))
+                    {
+                        Console.WriteLine($"  {getDate(match):yyyy-MM-dd}  {getPlayer(match),-8}  {etiquette} = {val:F2}");
+                    }
+                    Console.WriteLine();
+                }
+                else
+                {
+                    var normLabel = normalize ? " (normalisé [0, 1])" : "";
+                    Console.WriteLine($"{label}{playerInfo}{filterInfo} {stat.ToUpper()}{normLabel} ({valeurs.Count} matchs) : min = {valeurs.Values.Min():F2}, max = {valeurs.Values.Max():F2}, moy = {valeurs.Values.Average():F2} -> [{string.Join(", ", valeurs.Values.Select(v => v.ToString("F2")))}]");
+                }
+            }
 
             if (game == null || game == "all" || game == "valorant")
-            {
-                if (valorant != null && valorant.Count > 0 && valorantSelectors.TryGetValue(stat, out var selecteur))
-                {
-                    var retenus = valorant;
-                    DataSeries<double> valeurs = normalize
-                        ? retenus.Normalize(selecteur)
-                        : retenus.Transform(selecteur);
-
-                    Console.WriteLine($"Valorant{playerInfo}{filterInfo} {stat.ToUpper()}{normLabel} ({valeurs.Count} matchs) : min = {valeurs.Values.Min():F2}, max = {valeurs.Values.Max():F2}, moy = {valeurs.Values.Average():F2} -> [{string.Join(", ", valeurs.Values.Select(v => v.ToString("F2")))}]");
-                }
-            }
-
+                AfficherRapport("Valorant", valorant, valorantSelectors, m => m.Timestamp, m => m.Player);
             if (game == null || game == "all" || game == "cs2")
-            {
-                if (cs2 != null && cs2.Count > 0 && cs2Selectors.TryGetValue(stat, out var selecteur))
-                {
-                    var retenus = cs2;
-                    DataSeries<double> valeurs = normalize
-                        ? retenus.Normalize(selecteur)
-                        : retenus.Transform(selecteur);
-
-                    Console.WriteLine($"CS2{playerInfo}{filterInfo} {stat.ToUpper()}{normLabel} ({valeurs.Count} matchs) : min = {valeurs.Values.Min():F2}, max = {valeurs.Values.Max():F2}, moy = {valeurs.Values.Average():F2} -> [{string.Join(", ", valeurs.Values.Select(v => v.ToString("F2")))}]");
-                }
-            }
-
+                AfficherRapport("CS2", cs2, cs2Selectors, m => m.Timestamp, m => m.Player);
             if (game == null || game == "all" || game == "lol")
-            {
-                if (lol != null && lol.Count > 0 && lolSelectors.TryGetValue(stat, out var selecteur))
-                {
-                    var retenus = lol;
-                    DataSeries<double> valeurs = normalize
-                        ? retenus.Normalize(selecteur)
-                        : retenus.Transform(selecteur);
+                AfficherRapport("LoL", lol, lolSelectors, m => m.Timestamp, m => m.Player);
 
-                    Console.WriteLine($"LoL{playerInfo}{filterInfo} {stat.ToUpper()}{normLabel} ({valeurs.Count} matchs) : min = {valeurs.Values.Min():F2}, max = {valeurs.Values.Max():F2}, moy = {valeurs.Values.Average():F2} -> [{string.Join(", ", valeurs.Values.Select(v => v.ToString("F2")))}]");
-                }
-            }
             return;
         }
 
