@@ -35,5 +35,8 @@ namespace ESportApp
         public ValorantMatch(string player, string agent, int kills, int deaths,
                              int assists, int headshots, int roundsWon, bool won)
             : this(default, player, agent, kills, deaths, assists, headshots, roundsWon, won) { }
+
+        public override string ToString()
+            => $"Date: {Timestamp:yyyy-MM-dd}, Player: {Player}, Agent: {Agent}, Kills: {Kills}, Deaths: {Deaths}, Assists: {Assists}, Headshots: {Headshots}, Rounds Won: {RoundsWon}, Won: {Won}";
     }
 }

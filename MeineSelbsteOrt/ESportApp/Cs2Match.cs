@@ -33,5 +33,8 @@ namespace ESportApp
         public int Assists { get; }
         public int Mvps { get; }
         public bool Won { get; }
+
+        public override string ToString()
+            => $"Date: {Timestamp:yyyy-MM-dd}, Player: {Player}, Map: {Map}, Start Side: {StartSide}, Kills: {Kills}, Deaths: {Deaths}, Assists: {Assists}, MVPs: {Mvps}, Won: {Won}";
     }
 }

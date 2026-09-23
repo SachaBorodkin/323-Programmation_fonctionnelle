@@ -68,6 +68,31 @@ public class DataSeries<T>
                 .ToList()
         );
     }
+
+    public double Minimum(Func<T, double> value)
+    {
+        var valeurs = _data.Select(value).ToList();
+        return valeurs.Count > 0 ? valeurs.Min() : 0;
+    }
+    public double Maximum(Func<T, double> value)
+    {
+        var valeurs = _data.Select(value).ToList();
+        return valeurs.Count > 0 ? valeurs.Max() : 0;
+    }
+    public double Average(Func<T, double> value)
+    {
+        var valeurs = _data.Select(value).ToList();
+        return valeurs.Count > 0 ? valeurs.Average() : 0;
+    }
+
+    public double MME(Func<T, double> value)
+    {
+        var valeurs = _data.Select(value).ToList();
+        if (valeurs.Count == 0) return 0;
+        if (valeurs.Count == 1) return valeurs[0];
+
+        return valeurs.Aggregate(valeurs[0], (mme, v) => (v + mme) / 2);
+    }
 }
 
 public static class DataSeriesExtensions
