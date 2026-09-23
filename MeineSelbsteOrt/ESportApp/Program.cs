@@ -75,7 +75,6 @@ public class Program
 
     public static void GenerateMatches(string target)
     {
-        // Prédicats de validation des matchs générés
         Func<Cs2Match, bool> isValidCs2 = m =>
             m.Kills + m.Assists <= 50 &&
             m.Deaths >= 1;
@@ -170,7 +169,7 @@ public class Program
 
         if (args.Length == 0 || args.Contains("--help"))
         {
-            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers] [--sanitize] [--error strict|soft|hard] [--player <nom>] [--filter wins|losses|all|close]");
+            Console.WriteLine("Usage: EsportApp [--game valorant|cs2|lol] [--generate <joueur|all>] [--outliers] [--sanitize] [--error strict|soft|hard] [--player <nom>] [--filter wins|losses|all|close] [--kda] [--stat kda|kills|assists] [--normalize]");
             return;
         }
 
@@ -346,10 +345,31 @@ public class Program
         if (cs2 != null) cs2 = cs2.Filter(cs2Filters[filterMode]);
         if (lol != null) lol = lol.Filter(lolFilters[filterMode]);
 
-        // Mappers KDA (4.1)
-        Func<ValorantMatch, double> kdaValorant = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths);
-        Func<Cs2Match, double> kdaCs2 = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths);
-        Func<LolMatch, double> kdaLol = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths);
+        // 4.1 & 4.2 — Sélecteurs de statistiques / mappers
+        var valorantSelectors = new Dictionary<string, Func<ValorantMatch, double>>
+        {
+            ["kda"]     = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths),
+            ["kills"]   = m => m.Kills,
+            ["assists"] = m => m.Assists,
+            ["deaths"]  = m => m.Deaths,
+        };
+
+        var cs2Selectors = new Dictionary<string, Func<Cs2Match, double>>
+        {
+            ["kda"]     = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths),
+            ["kills"]   = m => m.Kills,
+            ["assists"] = m => m.Assists,
+            ["deaths"]  = m => m.Deaths,
+        };
+
+        var lolSelectors = new Dictionary<string, Func<LolMatch, double>>
+        {
+            ["kda"]     = m => (m.Kills + m.Assists) / (double)(m.Deaths == 0 ? 1 : m.Deaths),
+            ["kills"]   = m => m.Kills,
+            ["assists"] = m => m.Assists,
+            ["deaths"]  = m => m.Deaths,
+            ["cs"]      = m => m.Cs,
+        };
 
         // Gestion du flag --game
         string? game = null;
@@ -363,17 +383,57 @@ public class Program
         var playerInfo = player != null ? $" pour '{player}'" : "";
         var filterInfo = filterMode != "all" ? $" (filtre: {filterMode})" : "";
 
-        // 4.1 — Calcul des KDA via Transform(mapper)
-        if (args.Contains("--kda"))
+        // Flags 4.1 et 4.2 : --kda, --stat, --normalize
+        bool normalize = args.Contains("--normalize");
+        bool hasStat = args.Contains("--stat");
+        bool hasKda = args.Contains("--kda");
+        string stat = "kda";
+
+        if (hasStat)
         {
-            if (player == null && filterMode == "all")
+            var statIndex = Array.IndexOf(args, "--stat") + 1;
+            if (statIndex < args.Length && !args[statIndex].StartsWith("--"))
+                stat = args[statIndex].ToLower();
+        }
+
+        if (hasStat && !valorantSelectors.ContainsKey(stat))
+        {
+            Console.WriteLine($"Statistique inconnue : '{stat}' (modes attendus : kda, kills, assists, deaths)");
+            return;
+        }
+
+        // 4.2 — Comparaison directe des KDA normalisés si --normalize sans filtre ni stat spécifique
+        if (normalize && !hasStat && !hasKda && player == null && filterMode == "all" && game == null)
+        {
+            var kdaLea     = valorant?.Filter(m => m.Player == "Léa");
+            var kdaRaphael = cs2?.Filter(m => m.Player == "Raphaël");
+            var kdaNoe     = lol?.Filter(m => m.Player == "Noé");
+
+            var kdaLeaNorm     = kdaLea?.Normalize(valorantSelectors["kda"]);
+            var kdaRaphaelNorm = kdaRaphael?.Normalize(cs2Selectors["kda"]);
+            var kdaNoeNorm     = kdaNoe?.Normalize(lolSelectors["kda"]);
+
+            Console.WriteLine("=== Comparaison des KDA normalisés dans [0, 1] ===");
+            if (kdaLeaNorm != null && kdaLeaNorm.Count > 0)
+                Console.WriteLine($"Léa (Valorant)   : min = {kdaLeaNorm.Values.Min():F2}, max = {kdaLeaNorm.Values.Max():F2} -> [{string.Join(", ", kdaLeaNorm.Values.Select(k => k.ToString("F2")))}]");
+            if (kdaRaphaelNorm != null && kdaRaphaelNorm.Count > 0)
+                Console.WriteLine($"Raphaël (CS2)    : min = {kdaRaphaelNorm.Values.Min():F2}, max = {kdaRaphaelNorm.Values.Max():F2} -> [{string.Join(", ", kdaRaphaelNorm.Values.Select(k => k.ToString("F2")))}]");
+            if (kdaNoeNorm != null && kdaNoeNorm.Count > 0)
+                Console.WriteLine($"Noé (LoL)        : min = {kdaNoeNorm.Values.Min():F2}, max = {kdaNoeNorm.Values.Max():F2} -> [{string.Join(", ", kdaNoeNorm.Values.Select(k => k.ToString("F2")))}]");
+            return;
+        }
+
+        // 4.1 & 4.2 — Calcul et affichage de stats / normalisation
+        if (hasKda || hasStat || normalize)
+        {
+            if (hasKda && !normalize && !hasStat && player == null && filterMode == "all" && game == null)
             {
                 if (valorant != null)
                 {
-                    var kdaAll = valorant.Transform(kdaValorant);
-                    var kdaLea = valorant.Filter(m => m.Player == "Léa").Transform(kdaValorant);
-                    var kdaWins = valorant.Filter(m => m.Won).Transform(kdaValorant);
-                    var kdaLeaWins = valorant.Filter(m => m.Player == "Léa" && m.Won).Transform(kdaValorant);
+                    var kdaAll = valorant.Transform(valorantSelectors["kda"]);
+                    var kdaLea = valorant.Filter(m => m.Player == "Léa").Transform(valorantSelectors["kda"]);
+                    var kdaWins = valorant.Filter(m => m.Won).Transform(valorantSelectors["kda"]);
+                    var kdaLeaWins = valorant.Filter(m => m.Player == "Léa" && m.Won).Transform(valorantSelectors["kda"]);
 
                     Console.WriteLine("=== KDA Valorant (Transform) ===");
                     Console.WriteLine($"Tous les matchs ({kdaAll.Count}) : moyenne = {kdaAll.Values.Average():F2}");
@@ -384,8 +444,8 @@ public class Program
 
                 if (cs2 != null)
                 {
-                    var kdaRaphael = cs2.Filter(m => m.Player == "Raphaël").Transform(kdaCs2);
-                    var kdaKiara = cs2.Filter(m => m.Player == "Kiara").Transform(kdaCs2);
+                    var kdaRaphael = cs2.Filter(m => m.Player == "Raphaël").Transform(cs2Selectors["kda"]);
+                    var kdaKiara = cs2.Filter(m => m.Player == "Kiara").Transform(cs2Selectors["kda"]);
 
                     Console.WriteLine("\n=== KDA CS2 (Transform) ===");
                     Console.WriteLine($"Raphaël ({kdaRaphael.Count} matchs) : moyenne = {kdaRaphael.Values.Average():F2} -> [{string.Join(", ", kdaRaphael.Values.Select(k => k.ToString("F2")))}]");
@@ -394,8 +454,8 @@ public class Program
 
                 if (lol != null)
                 {
-                    var kdaNoe = lol.Filter(m => m.Player == "Noé").Transform(kdaLol);
-                    var kdaNoeWins = lol.Filter(m => m.Player == "Noé" && m.Won).Transform(kdaLol);
+                    var kdaNoe = lol.Filter(m => m.Player == "Noé").Transform(lolSelectors["kda"]);
+                    var kdaNoeWins = lol.Filter(m => m.Player == "Noé" && m.Won).Transform(lolSelectors["kda"]);
 
                     Console.WriteLine("\n=== KDA LoL (Transform) ===");
                     Console.WriteLine($"Noé ({kdaNoe.Count} matchs)       : moyenne = {kdaNoe.Values.Average():F2} -> [{string.Join(", ", kdaNoe.Values.Select(k => k.ToString("F2")))}]");
@@ -404,28 +464,44 @@ public class Program
                 return;
             }
 
+            var normLabel = normalize ? " (normalisé [0, 1])" : "";
+
             if (game == null || game == "all" || game == "valorant")
             {
-                if (valorant != null && valorant.Count > 0)
+                if (valorant != null && valorant.Count > 0 && valorantSelectors.TryGetValue(stat, out var selecteur))
                 {
-                    var kdaSeries = valorant.Transform(kdaValorant);
-                    Console.WriteLine($"Valorant{playerInfo}{filterInfo} KDA ({kdaSeries.Count} matchs) : moyenne = {kdaSeries.Values.Average():F2} -> [{string.Join(", ", kdaSeries.Values.Select(k => k.ToString("F2")))}]");
+                    var retenus = valorant;
+                    DataSeries<double> valeurs = normalize
+                        ? retenus.Normalize(selecteur)
+                        : retenus.Transform(selecteur);
+
+                    Console.WriteLine($"Valorant{playerInfo}{filterInfo} {stat.ToUpper()}{normLabel} ({valeurs.Count} matchs) : min = {valeurs.Values.Min():F2}, max = {valeurs.Values.Max():F2}, moy = {valeurs.Values.Average():F2} -> [{string.Join(", ", valeurs.Values.Select(v => v.ToString("F2")))}]");
                 }
             }
+
             if (game == null || game == "all" || game == "cs2")
             {
-                if (cs2 != null && cs2.Count > 0)
+                if (cs2 != null && cs2.Count > 0 && cs2Selectors.TryGetValue(stat, out var selecteur))
                 {
-                    var kdaSeries = cs2.Transform(kdaCs2);
-                    Console.WriteLine($"CS2{playerInfo}{filterInfo} KDA ({kdaSeries.Count} matchs) : moyenne = {kdaSeries.Values.Average():F2} -> [{string.Join(", ", kdaSeries.Values.Select(k => k.ToString("F2")))}]");
+                    var retenus = cs2;
+                    DataSeries<double> valeurs = normalize
+                        ? retenus.Normalize(selecteur)
+                        : retenus.Transform(selecteur);
+
+                    Console.WriteLine($"CS2{playerInfo}{filterInfo} {stat.ToUpper()}{normLabel} ({valeurs.Count} matchs) : min = {valeurs.Values.Min():F2}, max = {valeurs.Values.Max():F2}, moy = {valeurs.Values.Average():F2} -> [{string.Join(", ", valeurs.Values.Select(v => v.ToString("F2")))}]");
                 }
             }
+
             if (game == null || game == "all" || game == "lol")
             {
-                if (lol != null && lol.Count > 0)
+                if (lol != null && lol.Count > 0 && lolSelectors.TryGetValue(stat, out var selecteur))
                 {
-                    var kdaSeries = lol.Transform(kdaLol);
-                    Console.WriteLine($"LoL{playerInfo}{filterInfo} KDA ({kdaSeries.Count} matchs) : moyenne = {kdaSeries.Values.Average():F2} -> [{string.Join(", ", kdaSeries.Values.Select(k => k.ToString("F2")))}]");
+                    var retenus = lol;
+                    DataSeries<double> valeurs = normalize
+                        ? retenus.Normalize(selecteur)
+                        : retenus.Transform(selecteur);
+
+                    Console.WriteLine($"LoL{playerInfo}{filterInfo} {stat.ToUpper()}{normLabel} ({valeurs.Count} matchs) : min = {valeurs.Values.Min():F2}, max = {valeurs.Values.Max():F2}, moy = {valeurs.Values.Average():F2} -> [{string.Join(", ", valeurs.Values.Select(v => v.ToString("F2")))}]");
                 }
             }
             return;

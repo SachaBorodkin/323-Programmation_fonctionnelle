@@ -20,7 +20,7 @@ public class DataSeries<T>
 
     public static DataSeries<T> FromCsv(string path, Func<string[], T> parser)
     {
-        var lines = File.ReadAllLines(path).Skip(1); // ignorer l'en-tête
+        var lines = File.ReadAllLines(path).Skip(1); 
         return new DataSeries<T>(lines.Select(line =>
         {
             var cols = line.Split(',');
@@ -39,4 +39,23 @@ public class DataSeries<T>
 
     public DataSeries<TResult> Transform<TResult>(Func<T, TResult> mapper)
         => DataSeries<TResult>.From(_data.Select(mapper));
+
+    /// <summary>
+    /// 4.2 Évalue chaque objet de la série avec l'outil (fonction) d'évaluation fourni,
+    /// et retourne une nouvelle série de valeurs normalisées dans [0, 1].
+    /// </summary>
+    public DataSeries<double> Normalize(Func<T, double> evaluator)
+    {
+        var values = _data.Select(evaluator).ToList();
+        if (values.Count == 0)
+            return DataSeries<double>.From(Enumerable.Empty<double>());
+
+        var min = values.Min();
+        var max = values.Max();
+
+        if (Math.Abs(max - min) < 1e-9)
+            return DataSeries<double>.From(values.Select(_ => 0.0));
+
+        return DataSeries<double>.From(values.Select(v => (v - min) / (max - min)));
+    }
 }
