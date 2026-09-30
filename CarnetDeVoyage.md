@@ -284,18 +284,51 @@ Pour commencer, on regarde la [théorie de l'agrégation](./supports/source/04-R
 
 Et ensuite, on met tout cela en pratique avec [l'exercice 5](./exos/fil-rouge/esport/05-classement-fold/) du fil rouge.
 
-Situation en fin de matinée:
-|           | Présent |  5.1  |  5.2  |  5.3  |
-| --------- | :-----: | :---: | :---: | :---: |
-| albert    |         |       |       |       |
-| damienc   |         |       |       |       |
-| damienr   |         |       |       |       |
-| erdem     |         |       |       |       |
-| gianmarco |         |       |       |       |
-| gillian   |         |       |       |       |
-| kiril     |         |       |       |       |
-| sacha     |         |       |       |       |
-| snehan    |         |       |       |       |
-| theophile |         |       |       |       |
-| tony      |         |       |       |       |
-| zidane    |         |       |       |       |
+#### Bilan
+
+Un mot : Inquiétude
+
+J'observe de nombreux signaux dérangeant:
+
+- Très (trop) peu de commits effectués sur une durée de plus de 1h30 de pratique
+- Des commits "miracle", genre trios nouveaux fichiers d'un bloc qui résolvent en une fois un problème complexe
+- Des commits non contrôlés, qui réintroduisent la classe DataPoint qu'on avait convenu d'abandonner
+- Des pratiques contraires à celle qui vous ont été enseignées (déclaration de classe dans un bloc de code par exemple)
+- Du code d'un niveau qui ne me semble pas compatible avec celui de son auteur présumé
+- Des fenêtres qui disparaissent de l'écran, ou des discussions qui s'arrêtent dès que je m'approche à moins de deux mètres
+- L'absence de traces d'activités de rattrapage pour ceux qui étaient "absents la dernière fois"
+- Le peu de temps qui me semble investi dans la révision en vue des checkpoints. Les résultats du dernier en date tendent à confirmer cette impression.
+
+Ce qui m'inquiète n'est pas la note que vous obtiendrez à ce module: avec le nombre de notes obtenues sur les deux premières années et vos moyennes actuelle, ce n'est pas une mauvaise note de module qui va vous faire couler.  
+Ce qui m'inquiète, me désole et me fatigue, c'est la manière de fonctionner de certains, qui relève plus de l'écolier que du professionnel. Ce qui était acceptable en début de première année ne l'est plus maintenant que vous êtes à quelques mois de partir en stage en entreprise.  
+
+L'IA n'est **PAS** votre amie si vous l'utilisez pour faire le travail que je vous demande à votre place.  
+
+Comme je l'ai dit ce matin, ce feedback ne s'applique pas entièrement à chacun d'entre vous. Ceux qui ne sont que pas - ou peu - concernés sauront se reconnaître.
+
+En termes d'avancement dans l'exercice 5, il est globalement inexistant. Il y a quatre implémentations de MME en tout dont deux ne me semblent pas avoir été écrites par leurs propriétaires. En d'autres termes: la partie 5.1 est très partiellement entamée et c'est tout.
+
+## Etape 6
+
+### Lundi 21 septembre
+
+Remise en route après deux semaines d'inactivité sur le projet:
+
+- Bien faire le point de situation de son projet: après la semaine prochaine (donc dans 8 périodes), on arrive au 80%
+- Compléter la partie bilan du rapport si votre planification initiale prévoyait du travail lundi passé et qu'il n'a pas été fait...
+- Je me renseigne sur Avalonia
+- Chacun avance et je tourne parmi vous
+
+#### Bilan
+
+- J'ai pu passer vers toutes les personnes que je n'ai pas vues la dernière fois
+- J'ai eu des réponses diverses sur Avalonia. Rappel: le contenu de votre repo doit me permettre d'exécuter votre app. Si je ne connais pas la techno, votre rapport doit me guider!
+- La consigne concernant le jdt a bien passé: tous (sauf un -> joker brûlé) l'ont mis à jour
+
+### Mercredi 30
+
+On fait le checkpoint #5 qui porte principalement sur la réduction.
+
+On fait l'évaluation formative (correction en DoJo après la pause).
+
+Chacun continue les étapes de ESportApp
