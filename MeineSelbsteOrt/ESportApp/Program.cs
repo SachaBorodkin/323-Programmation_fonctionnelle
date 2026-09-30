@@ -166,7 +166,10 @@ public class Program
         Console.WriteLine("  --normalize                  Ramène l'indicateur dans [0.0, 1.0]");
         Console.WriteLine("  --smooth <n>                 Moyenne glissante sur n valeurs");
         Console.WriteLine("                                 (normalisation puis lissage, dans cet ordre)");
-        Console.WriteLine("  --extract min|max|avg|mme    Extraire un indicateur (avec le détail des matchs)");
+        Console.WriteLine("  --window <n>                 Moyenne glissante sur des fenêtres de taille n");
+        Console.WriteLine("  --rank                       Classement des joueurs par KDA moyen");
+        Console.WriteLine("  --compare                    Compare la régularité (Léa vs Raphaël)");
+        Console.WriteLine("  --extract min|max|avg|mme|stats  Extraire un indicateur (avec le détail des matchs)");
         Console.WriteLine();
         Console.WriteLine("Données");
         Console.WriteLine("  --generate <joueur|all>      Simule et exporte les matchs manquants, puis quitte");
@@ -199,7 +202,7 @@ public class Program
             "--game", "--player", "--filter", "--stat", "--normalize", "--smooth",
             "--generate", "--error", "--help", "--version",
             "--outliers", "--sanitize", "--kda",
-            "--extract", "--mme",
+            "--extract", "--mme", "--rank", "--window", "--compare"
         };
 
         string? unknownFlag = args.FirstOrDefault(a => a.StartsWith("--") && !knownFlags.Contains(a));
@@ -221,7 +224,7 @@ public class Program
         var valueFlags = new[]
         {
             "--game", "--player", "--filter", "--stat", "--smooth", "--generate", "--error",
-            "--extract"
+            "--extract", "--window"
         };
         string? flagSansValeur = valueFlags.FirstOrDefault(f => args.Contains(f) && ValueOf(f) == null);
         if (flagSansValeur != null)
@@ -269,7 +272,7 @@ public class Program
         if (args.Contains("--mme"))
             extractMode = "mme";
 
-        var extractModes = new[] { "min", "max", "avg", "mme" };
+        var extractModes = new[] { "min", "max", "avg", "mme", "stats" };
         if (extractMode != null && !extractModes.Contains(extractMode))
         {
             Console.WriteLine($"Indicateur à extraire inconnu : {extractMode} (attendu : {string.Join(", ", extractModes)})");
@@ -278,7 +281,12 @@ public class Program
 
 
         int smoothWindow = 0;
-        if (args.Contains("--smooth"))
+        if (args.Contains("--window"))
+        {
+            if (!int.TryParse(ValueOf("--window"), out smoothWindow))
+                smoothWindow = -1;
+        }
+        else if (args.Contains("--smooth"))
         {
             if (!int.TryParse(ValueOf("--smooth"), out smoothWindow))
                 smoothWindow = -1;
@@ -286,13 +294,14 @@ public class Program
 
         if (smoothWindow < 0)
         {
-            Console.WriteLine($"Fenêtre de lissage invalide : {ValueOf("--smooth")} (attendu : un entier >= 1)");
+            string flag = args.Contains("--window") ? "--window" : "--smooth";
+            Console.WriteLine($"Fenêtre invalide : {ValueOf(flag)} (attendu : un entier >= 1)");
             return;
         }
 
-        if (args.Contains("--smooth") && smoothWindow < 1)
+        if ((args.Contains("--smooth") || args.Contains("--window")) && smoothWindow < 1)
         {
-            Console.WriteLine("Fenêtre de lissage invalide : la taille minimale est 1.");
+            Console.WriteLine("Fenêtre invalide : la taille minimale est 1.");
             return;
         }
 
@@ -403,7 +412,54 @@ public class Program
             ["assists"] = m => m.Assists,
         };
 
-        
+        var sanitizedValorant = valorant != null ? valorant.Sanitize(isOutlierValorant) : DataSeries<ValorantMatch>.From(Enumerable.Empty<ValorantMatch>());
+        var sanitizedCs2      = cs2 != null ? cs2.Sanitize(isOutlierCs2) : DataSeries<Cs2Match>.From(Enumerable.Empty<Cs2Match>());
+        var sanitizedLol      = lol != null ? lol.Sanitize(isOutlierLol) : DataSeries<LolMatch>.From(Enumerable.Empty<LolMatch>());
+
+        var kdaLea = sanitizedValorant
+            .Filter(m => m.Player.Equals("Léa", StringComparison.OrdinalIgnoreCase) || m.Player.Equals("Lea", StringComparison.OrdinalIgnoreCase))
+            .Transform(valorantSelectors["kda"]);
+
+        var kdaDylan = sanitizedValorant
+            .Filter(m => m.Player.Equals("Dylan", StringComparison.OrdinalIgnoreCase))
+            .Transform(valorantSelectors["kda"]);
+
+        var kdaRaphael = sanitizedCs2
+            .Filter(m => m.Player.Equals("Raphaël", StringComparison.OrdinalIgnoreCase) || m.Player.Equals("Raphael", StringComparison.OrdinalIgnoreCase))
+            .Transform(cs2Selectors["kda"]);
+
+        var kdaKiara = sanitizedCs2
+            .Filter(m => m.Player.Equals("Kiara", StringComparison.OrdinalIgnoreCase))
+            .Transform(cs2Selectors["kda"]);
+
+        var kdaNoe = sanitizedLol
+            .Filter(m => m.Player.Equals("Noé", StringComparison.OrdinalIgnoreCase) || m.Player.Equals("Noe", StringComparison.OrdinalIgnoreCase))
+            .Transform(lolSelectors["kda"]);
+
+        if (args.Contains("--rank"))
+        {
+            var players = new[]
+            {
+                ("Léa",     kdaLea.Count > 0 ? kdaLea.Fold(0.0,     (a, v) => a + v) / kdaLea.Count : 0.0),
+                ("Raphaël", kdaRaphael.Count > 0 ? kdaRaphael.Fold(0.0, (a, v) => a + v) / kdaRaphael.Count : 0.0),
+                ("Noé",     kdaNoe.Count > 0 ? kdaNoe.Fold(0.0,     (a, v) => a + v) / kdaNoe.Count : 0.0),
+                ("Dylan",   kdaDylan.Count > 0 ? kdaDylan.Fold(0.0,   (a, v) => a + v) / kdaDylan.Count : 0.0),
+                ("Kiara",   kdaKiara.Count > 0 ? kdaKiara.Fold(0.0,   (a, v) => a + v) / kdaKiara.Count : 0.0),
+            };
+            foreach (var (name, kda) in players.OrderByDescending(p => p.Item2))
+                Console.WriteLine($"{name,-10} KDA moy : {kda:F2}");
+
+            return;
+        }
+
+        if (args.Contains("--compare"))
+        {
+            var statsLea     = kdaLea.Statistics();
+            var statsRaphael = kdaRaphael.Statistics();
+            Console.WriteLine($"Léa     — KDA moy : {statsLea.Mean:F2}, écart-type : {statsLea.StdDev:F2}");
+            Console.WriteLine($"Raphaël — KDA moy : {statsRaphael.Mean:F2}, écart-type : {statsRaphael.StdDev:F2}");
+            return;
+        }
 
         bool normalize = args.Contains("--normalize");
 
@@ -454,6 +510,13 @@ public class Program
 
                 foreach (T match in retenus.Values)
                     Console.WriteLine($"  {date(match):yyyy-MM-dd}  {joueur(match),-8}  {stat} = {statFunc(match):F2}");
+
+                if (extractMode == "stats")
+                {
+                    var s = retenus.Transform(statFunc).Statistics();
+                    Console.WriteLine($"  Stats ({stat}) : Min = {s.Min:F2}, Max = {s.Max:F2}, Moy = {s.Mean:F2}, Écart-type = {s.StdDev:F2}\n");
+                    return true;
+                }
 
                 double resultat = extractMode switch
                 {

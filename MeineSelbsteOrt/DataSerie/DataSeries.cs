@@ -93,6 +93,52 @@ public class DataSeries<T>
 
         return valeurs.Aggregate(valeurs[0], (mme, v) => (v + mme) / 2);
     }
+
+    public TResult Fold<TResult>(TResult seed, Func<TResult, T, TResult> combiner)
+        => _data.Aggregate(seed, combiner);
+
+    public IEnumerable<DataSeries<T>> SlidingWindow(int size)
+    {
+        if (size <= 0) return Enumerable.Empty<DataSeries<T>>();
+        var values = _data.ToList();
+        return Enumerable.Range(0, Math.Max(0, values.Count - size + 1))
+            .Select(i => DataSeries<T>.From(values.Skip(i).Take(size)));
+    }
+
+    public SeriesStats Statistics()
+    {
+        var values = _data.Cast<double>().ToList();
+        if (values.Count == 0)
+            return new SeriesStats(0, 0, 0, 0);
+
+        var mean = values.Aggregate(0.0, (acc, v) => acc + v) / values.Count;
+        var variance = values.Aggregate(0.0, (acc, v) => acc + Math.Pow(v - mean, 2)) / values.Count;
+        return new SeriesStats(
+            min: values.Min(),
+            max: values.Max(),
+            mean: mean,
+            stdDev: Math.Sqrt(variance)
+        );
+    }
+
+    public SeriesStats Statistics(Func<T, double> evaluator)
+        => Transform(evaluator).Statistics();
+}
+
+public class SeriesStats
+{
+    public double Min { get; }
+    public double Max { get; }
+    public double Mean { get; }
+    public double StdDev { get; }
+
+    public SeriesStats(double min, double max, double mean, double stdDev)
+    {
+        Min = min;
+        Max = max;
+        Mean = mean;
+        StdDev = stdDev;
+    }
 }
 
 public static class DataSeriesExtensions
