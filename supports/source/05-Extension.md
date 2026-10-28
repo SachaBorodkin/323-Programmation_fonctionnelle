@@ -6,13 +6,25 @@ Le langage C# est un langage relativement riche, toutefois on peut encore l’en
 ## D’ailleurs, LINQ utilise ce mécanisme pour étendre les possibilités des `IEnumerable`, par exemple si on regarde la signature de `Where` :
 
 ```csharp
-public static System.Linq.IQueryable<TSource> Where<TSource> (/*C’est quoi ça ?*/ this /*?????*/ System.Linq.IQueryable<TSource> source, System.Linq.Expressions.Expression<Func<TSource,bool>> predicate);
+public static System.Linq.IQueryable<TSource> Where<TSource> (this System.Linq.IQueryable<TSource> source, System.Linq.Expressions.Expression<Func<TSource,bool>> predicate);
+//                                                             ^
+//                                                          C'est quoi ça ???
 ```
 
-La *magie* des extensions consiste à définir une fonction `statique et publique` et définir comme premier paramètre 
-un élément du type qu'on veut étendre et préfixé par le mot clé `this`. Et tout ça dans une classe elle aussi 
-`public et statique`:
+La déclaration d'une méthode d'extension répond à trois règles:
+1. Elle est `public static`
+2. Elle appartient à une classe qui est également `public static`
+3. Son premier paramètre est du type qu'on veut étendre, préfixé par le mot clé `this`
 
+Pour le reste, il s'agit d'une méthode conventionnelle:
+- Elle peut retourner une valeur - ou rien
+- Elle peut recevoir des paramètres - ou pas
+
+Pour que vos méthodes d'extension soient utilisables, il faut que la classe qui les définit se trouve
+- Soit dans le même namespace que votre code
+- Soit dans un namespace importé avec `using`
+  
+Exemple:  
 ```csharp
 public static class PeopleExtensions
 {
@@ -23,7 +35,7 @@ public static class PeopleExtensions
 }
 ```
 
-Ce code étend la classe string de C# en ajoutant une méthode `Greetings()`:
+Ce code étend la classe `string` de C# en ajoutant une méthode `Greetings()`:
 
 ```csharp
 Console.WriteLine("Bob".Greetings());
@@ -34,15 +46,12 @@ Ce code affichera
 Hello Bob
 ```
 
-Pour que vos méthodes d'extension soient utilisables, il faut que la classe qui les définit se trouve
-- Soit dans le même namespace que votre code
-- Soit dans un namespace importé avec `using`
-  
-### Un peu mieux
-En ajoutant une méthode d'extension qui ne retourne rien (`void`), on peut faire encore mieux.
+## Chaînage grâce à la valeur de retour
+Quand une méthode d'extension retourne un élément, cela permet de faire du chaînage.  
+En effet, si la méthode retourne un résultat, ce dernier a un type.  
+Et si on a défini une méthode d'extension pour ce type, on peut l'utiliser directement sur le résultat.  
 
-Méthode supplémentaire : 
-
+Exemple 1: chaînage
 ```csharp
 public static void ToConsole(this string subject)
 {
@@ -50,19 +59,27 @@ public static void ToConsole(this string subject)
 }
 ```
 
-Utilisation :
+"Bob" est une `string`, on peut donc faire `"Bob".Greetings()`  
+Le résultat de `"Bob".Greetings()` est de type `string`, on peut donc faire `"Bob".Greetings().ToConsole()`
 
-```csharp
-"Bob".Greetings().ToConsole();
-```
-
-> Cet exemple montre clairement que le chaînage fonctionnel part des données (ici "Bob"). Ainsi
-> c'est un point de vue qui peut être déstabilisant, car on avait l'habitude jusque-là de choisir
+> Cet exemple montre que le chaînage fonctionnel part des données (ici "Bob").  
+> C'est un point de vue qui peut être déstabilisant, car on avait l'habitude jusque-là de choisir
 > d'abord l'action (avec Console.Write)...
 
-## Chaînage avec valeur de retour
-Quand une méthode d'extension retourne un élément, cela permet de faire du chaînage.
-Avec la méthode suivante :
+Quel sera le résultat de `"Bob".Greetings().Greetings().ToConsole()` ?
+<details>
+<summary>réponse</summary>
+
+Ecrire "Hello Hello Bob" dans la console
+</details>  
+  
+Quel sera le résultat de `"Bob".Greetings().ToConsole().Greetings()` ?
+<details>
+<summary>réponse</summary>
+Une erreur de compilation car on ne peut pas étendre `void`
+</details>  
+  
+Exemple 2: avec paramètres
 
 ```csharp
     /// <summary>
@@ -84,7 +101,7 @@ Avec la méthode suivante :
 > On constate dans cet exemple qu'une méthode d'extension peut avoir des paramètres standards à la
 > suite du premier (ici bool random=false)...
 
-On peut écrire le code suivant :
+Quel sera le résultat du code suivant :
 
 ```csharp
 var data = new[] {"BoB","Max","jOelLe","NadiA" };
@@ -96,7 +113,7 @@ data
 ```
 
 <details>
-<summary>Quel sera le résultat ?</summary>
+<summary>Réponse</summary>
 
 50% de chance :
 ```text
@@ -148,59 +165,38 @@ public void TestDifferentNumber()
 > Sans connaître le langage Cosmos, on comprend que ce teste vérifie la différence entre deux valeurs...
 > Derrière les décors, IsDifferentThan convertit cela en langage Cosmos...
 
-## Zip — combiner deux séquences en parallèle
+## Méthodes standards vs Extensions
 
-`Zip` apparie les éléments de deux séquences **position par position** — comme les dents
-d'une fermeture éclair :
+En réalité, les extensions n'offrent rien de plus que les méthodes standards, si ce n'est le fait qu'elles peuvent contribuer à rendre le code lisible de manière plus naturelle.
 
-```csharp
-var dates = new[] { "01.03", "08.03", "15.03" };
-var kda   = new[] { 2.4, 3.1, 1.8, 2.9 };       // 4 valeurs !
-
-var timeline = dates.Zip(kda, (date, score) => $"{date} → KDA {score}");
-// { "01.03 → KDA 2.4", "08.03 → KDA 3.1", "15.03 → KDA 1.8" }
-```
-
-Deux propriétés à retenir :
-
-- **Appariement par position** — le 1er élément avec le 1er, le 2e avec le 2e, etc.
-  Aucune clé, aucun tri : seule la position compte.
-- **Arrêt sur la plus courte** — ici 3 dates pour 4 scores : le 4e score est ignoré
-  sans erreur. Le résultat a la longueur de la séquence la plus courte.
-
-Sans le combineur, `Zip` produit des tuples :
+Exemple 1: Normalisation de chaîne de caractères
 
 ```csharp
-var pairs = dates.Zip(kda); // IEnumerable<(string, double)>
-```
-
-`Zip` est le complément naturel des extensions fluentes : il permet de comparer deux séries
-côte à côte dans un pipeline (voir `PairWith` dans l'exercice 06 du fil rouge, ainsi que les
-exercices [events](../../exos/events/README.md) et [randoPureZip](../../exos/randoPureZip/README.md)).
-
-## Composition de Fonctions (f ∘ g)
-
-La **composition de fonctions** est l'un des principes fondamentaux de la programmation
-fonctionnelle. L'idée est simple : la sortie d'une fonction devient l'entrée de la suivante.
-
-En mathématiques : `(f ∘ g)(x) = f(g(x))`
-
-En C# avec méthodes d'extension : `x.g().f()` — c'est la même chose.
-
-```csharp
-// Sans composition
-var result = ToUpperCase(RemoveSpaces(Trim(input)));
+// Méthodes standards
+string input = Console.ReadLine();
+string normalizedInput = ToUpperCase(RemoveSpaces(Trim(input)));
 
 // Avec extensions — même chose, lecture de gauche à droite
-var result = input.Trim().RemoveSpaces().ToUpperCase();
+string normalizedInput = input.Trim().RemoveSpaces().ToUpperCase();
+
+// Et si la liste d'actions s'allonge
+string normalizedInput = input
+    .Trim()
+    .RemoveSpaces()
+    .ReplaceAccents().
+    .Justify(right: true)
+    .Crop(8)
+    .ToUpperCase()
 ```
 
-### Le contrat de la composition
+Exemple 2: LinQ
 
-Pour que le chaînage soit possible, chaque méthode doit **retourner le même type qu'elle
-reçoit** (ou un type compatible). C'est le contrat que LINQ respecte :
+LinQ propose principalement des extensions:
+- De types générique énumérable
+- Qui reçoivent une fonction en paramètre
 
 ```csharp
+IEnumerable<int> numbers = new List<int> { 13, 32, -23, -4, 15, 22, 98 };
 // IEnumerable<T> → Where → IEnumerable<T> → Select → IEnumerable<T> → OrderBy → ...
 numbers
     .Where(n => n > 0)          // IEnumerable<int>
@@ -210,38 +206,8 @@ numbers
     .ToList();                  // List<int> — matérialisation
 ```
 
-### Composition explicite avec `Func`
-
-On peut composer des fonctions manuellement avec `Func` :
-
-```csharp
-// Deux fonctions à composer
-Func<string, string> trim    = s => s.Trim();
-Func<string, string> toLower = s => s.ToLower();
-
-// Composition manuelle
-Func<string, string> normalize = s => toLower(trim(s));
-
-// En méthode d'extension générique
-public static Func<A, C> Compose<A, B, C>(this Func<A, B> f, Func<B, C> g)
-    => x => g(f(x));
-
-// Utilisation
-Func<string, string> normalize2 = trim.Compose(toLower);
-Console.WriteLine(normalize2("  HELLO  ")); // "hello"
-```
-
-### Pourquoi la composition est-elle liée à l'immutabilité ?
-
-La composition fonctionnelle n'est possible *que* parce que les fonctions ne modifient
-pas leur entrée. Si `Filter` modifiait la liste source au lieu de retourner une nouvelle
-liste, `Transform(Filter(data))` serait imprévisible — `data` aurait été altéré.
-
-> L'immutabilité, la pureté et la composition forment un triangle indissociable :
-> chacun rend les deux autres possibles et utiles.
-
 ## Conclusion ⚖
 Les extensions du langage sont une bonne manière d'accélérer le développement en enrichissant
-le langage de base avec ce qu'on a besoin de manière répétitive... Bien entendu, cela implique
-d'avoir une dépendance supplémentaire vers ces extensions et cet aspect doit être pris en compte
+le langage de base avec ce qu'on a besoin de manière répétitive...  
+Bien entendu, cela implique d'avoir une dépendance supplémentaire vers ces extensions et cet aspect doit être pris en compte
 dans la balance au moment de choisir de les utiliser ou pas...
